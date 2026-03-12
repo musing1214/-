@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>외근 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --border: #2e2e3e;
+    --accent: #4ade80;
+    --accent2: #f43f5e;
+    --accent3: #60a5fa;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── LOGIN ── */
+  #login-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+    background: radial-gradient(ellipse at 50% 0%, #1a2a1a 0%, var(--bg) 60%);
+  }
+
+  .login-logo {
+    font-size: 13px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .login-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 40px;
+    color: var(--text);
+  }
+
+  .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .login-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .login-select, .login-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 15px;
+    padding: 13px 16px;
+    margin-bottom: 16px;
+    font-family: 'Noto Sans KR', sans-serif;
+    appearance: none;
+    outline: none;
+    transition: border-color .2s;
+  }
+
+  .login-select:focus, .login-input:focus {
+    border-color: var(--accent);
+  }
+
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all .2s;
+    letter-spacing: .5px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0a1a0a;
+  }
+
+  .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-danger {
+    background: var(--accent2);
+    color: white;
+  }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  /* ── EMPLOYEE APP ── */
+  #employee-screen {
+    display: none;
+    flex-direction: column;
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 0 100px;
+  }
+
+  .app-header {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  .app-header-name {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .app-header-date {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    margin-top: 2px;
+  }
+
+  .logout-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+
+  .checkin-section {
+    padding: 24px 20px;
+  }
+
+  .status-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .status-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .status-dot.active {
+    background: var(--accent);
+    box-shadow: 0 0 0 4px rgba(74,222,128,.2);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(74,222,128,.2); }
+    50% { box-shadow: 0 0 0 8px rgba(74,222,128,.05); }
+  }
+
+  .status-info { flex: 1; }
+  .status-label { font-size: 13px; color: var(--muted); }
+  .status-value { font-size: 15px; font-weight: 600; margin-top: 2px; }
+
+  .checkin-btn {
+    width: 100%;
+    padding: 18px;
+    border-radius: 14px;
+    border: none;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all .2s;
+    letter-spacing: .5px;
+    margin-bottom: 12px;
+  }
+
+  .checkin-btn.in {
+    background: linear-gradient(135deg, var(--accent), #22c55e);
+    color: #0a1a0a;
+    box-shadow: 0 8px 24px rgba(74,222,128,.25);
+  }
+
+  .checkin-btn.out {
+    background: linear-gradient(135deg, var(--accent2), #e11d48);
+    color: white;
+    box-shadow: 0 8px 24px rgba(244,63,94,.25);
+  }
+
+  .checkin-btn:active { transform: scale(.97); }
+
+  .note-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 14px;
+    padding: 13px 16px;
+    font-family: 'Noto Sans KR', sans-serif;
+    outline: none;
+    resize: none;
+    transition: border-color .2s;
+    margin-bottom: 12px;
+  }
+
+  .note-input:focus { border-color: var(--accent3); }
+
+  .records-section {
+    padding: 0 20px;
+  }
+
+  .section-title {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .record-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .record-type {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .record-type.in { background: rgba(74,222,128,.15); color: var(--accent); }
+  .record-type.out { background: rgba(244,63,94,.15); color: var(--accent2); }
+
+  .record-body { flex: 1; }
+  .record-time { font-size: 14px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .record-addr { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+  .record-note { font-size: 12px; color: var(--accent3); margin-top: 4px; }
+
+  /* ── ADMIN ── */
+  #admin-screen {
+    display: none;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .admin-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .admin-title {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .admin-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .tab-bar {
+    display: flex;
+    gap: 8px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    background: var(--bg);
+    position: sticky;
+    top: 61px;
+    z-index: 99;
+  }
+
+  .tab {
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all .2s;
+  }
+
+  .tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0a1a0a;
+    font-weight: 700;
+  }
+
+  #map {
+    height: 340px;
+    width: 100%;
+    background: var(--surface);
+  }
+
+  .admin-list {
+    padding: 16px 20px;
+  }
+
+  .admin-record-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .emp-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(96,165,250,.15);
+    color: var(--accent3);
+    flex-shrink: 0;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 20px 0;
+    overflow-x: auto;
+  }
+
+  .filter-chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all .2s;
+  }
+
+  .filter-chip.active {
+    background: var(--surface2);
+    border-color: var(--accent3);
+    color: var(--accent3);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.8;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    z-index: 999;
+    opacity: 0;
+    transition: all .3s;
+    white-space: nowrap;
+    max-width: 90vw;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .gps-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .map-legend {
+    display: flex;
+    gap: 16px;
+    padding: 10px 20px;
+    font-size: 12px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .stat-row {
+    display: flex;
+    gap: 10px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-card {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 12px;
+    text-align: center;
+  }
+
+  .stat-val {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+    color: var(--accent);
+  }
+
+  .stat-lbl {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-logo">GPS TRACKER</div>
+  <div class="login-title">외근 관리 시스템</div>
+  <div class="login-box">
+    <label class="login-label">접속 유형</label>
+    <select class="login-select" id="login-role">
+      <option value="employee">직원</option>
+      <option value="admin">관리자</option>
+    </select>
+    <div id="employee-select-wrap">
+      <label class="login-label">직원 선택</label>
+      <select class="login-select" id="login-emp"></select>
+    </div>
+    <div id="admin-pw-wrap" style="display:none">
+      <label class="login-label">관리자 비밀번호</label>
+      <input type="password" class="login-input" id="admin-pw" placeholder="비밀번호 입력">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">입장하기</button>
+  </div>
+</div>
+
+<!-- EMPLOYEE -->
+<div id="employee-screen">
+  <div class="app-header">
+    <div>
+      <div class="app-header-name" id="emp-name-display">직원1</div>
+      <div class="app-header-date" id="emp-date-display"></div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">로그아웃</button>
+  </div>
+
+  <div class="checkin-section">
+    <div class="status-card">
+      <div class="status-dot" id="status-dot"></div>
+      <div class="status-info">
+        <div class="status-label">현재 상태</div>
+        <div class="status-value" id="status-text">외근 대기</div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;" id="status-time"></div>
+    </div>
+
+    <textarea class="note-input" id="note-input" rows="2" placeholder="메모 (방문처, 목적 등) — 선택사항"></textarea>
+
+    <div class="gps-loading" id="gps-loading" style="display:none">
+      <div class="spinner"></div> GPS 위치 확인 중...
+    </div>
+
+    <button class="checkin-btn in" id="checkin-btn" onclick="doCheckin()">📍 외근 시작 (체크인)</button>
+  </div>
+
+  <div class="records-section">
+    <div class="section-title">오늘의 기록</div>
+    <div id="emp-records"></div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="admin-screen">
+  <div class="admin-header">
+    <div>
+      <div class="admin-title">관리자 대시보드</div>
+      <div class="admin-subtitle" id="admin-date"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="logout-btn" onclick="reloadSheetData(() => { updateMapMarkers(); renderAdminList(); renderStats(); })">🔄 새로고침</button>
+      <button class="logout-btn" onclick="doLogout()">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('map')">🗺 지도</button>
+    <button class="tab" onclick="switchTab('list')">📋 목록</button>
+    <button class="tab" onclick="switchTab('stats')">📊 통계</button>
+    <button class="tab" onclick="switchTab('members')">👥 직원관리</button>
+  </div>
+
+  <!-- MAP TAB -->
+  <div id="tab-map">
+    <div class="filter-row" id="admin-filter-row">
+      <button class="filter-chip active" data-emp="ALL" onclick="filterAdmin(this)">전체</button>
+      <button class="filter-chip" data-emp="직원1" onclick="filterAdmin(this)">직원 1</button>
+      <button class="filter-chip" data-emp="직원2" onclick="filterAdmin(this)">직원 2</button>
+      <button class="filter-chip" data-emp="직원3" onclick="filterAdmin(this)">직원 3</button>
+    </div>
+    <div class="map-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div>체크인</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f43f5e"></div>체크아웃</div>
+    </div>
+    <div id="map"></div>
+  </div>
+
+  <!-- LIST TAB -->
+  <div id="tab-list" style="display:none">
+    <div class="filter-row" style="padding-bottom:12px">
+      <button class="filter-chip active" data-emp="ALL" onclick="filterList(this)">전체</button>
+      <button class="filter-chip" data-emp="직원1" onclick="filterList(this)">직원 1</button>
+      <button class="filter-chip" data-emp="직원2" onclick="filterList(this)">직원 2</button>
+      <button class="filter-chip" data-emp="직원3" onclick="filterList(this)">직원 3</button>
+    </div>
+    <div class="admin-list" id="admin-records-list"></div>
+  </div>
+
+  <!-- STATS TAB -->
+  <div id="tab-stats" style="display:none">
+    <div class="stat-row" id="stats-row"></div>
+    <div class="admin-list" id="stats-detail"></div>
+  </div>
+
+  <!-- MEMBERS TAB -->
+  <div id="tab-members" style="display:none">
+    <div class="admin-list" id="members-list"></div>
+    <div style="padding: 0 20px 20px">
+      <div class="section-title" style="margin-bottom:12px">새 직원 추가</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="new-emp-name" class="login-input" placeholder="이름 입력" style="margin-bottom:0;flex:1">
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+          <label class="login-label" style="margin-bottom:2px">색상</label>
+          <input type="color" id="new-emp-color" value="#60a5fa" style="width:44px;height:44px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);cursor:pointer;padding:2px">
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <input type="checkbox" id="new-emp-test" style="width:16px;height:16px;accent-color:var(--accent3)">
+        <label for="new-emp-test" style="font-size:13px;color:var(--muted);cursor:pointer">테스트 유저 (로그인 목록 하단에 구분 표시)</label>
+      </div>
+      <button class="btn btn-primary" onclick="addEmployee()">+ 직원 추가</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ──
+const ADMIN_PASSWORD = '1234'; // 관리자 비밀번호 (변경 가능)
+const STORAGE_KEY = 'gps_records_v1';
+const EMP_STORAGE_KEY = 'gps_employees_v1';
+const COLOR_POOL = ['#60a5fa','#f59e0b','#a78bfa','#f472b6','#34d399','#fb923c','#e879f9','#22d3ee'];
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxnhb_gj7TwjyKyDxjMznn-lSITUNuHyP4Y35-HTenALC1Nh8riE4yivuUkVP77iEw-Qw/exec';
+
+let currentUser = null;
+let currentRole = null;
+let isCheckedIn = false;
+let map = null;
+let mapMarkers = [];
+let currentFilter = 'ALL';
+let listFilter = 'ALL';
+
+// ── EMPLOYEE MANAGEMENT ──
+function getEmployees() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(EMP_STORAGE_KEY) || 'null');
+    if (stored && stored.length) return stored;
+  } catch {}
+  const defaults = [
+    { id: 1, name: '직원1', color: '#60a5fa', isTest: false },
+    { id: 2, name: '직원2', color: '#f59e0b', isTest: false },
+    { id: 3, name: '직원3', color: '#a78bfa', isTest: false },
+    { id: 4, name: '테스트', color: '#34d399', isTest: true },
+  ];
+  localStorage.setItem(EMP_STORAGE_KEY, JSON.stringify(defaults));
+  return defaults;
+}
+
+function saveEmployees(emps) {
+  localStorage.setItem(EMP_STORAGE_KEY, JSON.stringify(emps));
+}
+
+function getEmpColor(name) {
+  const emps = getEmployees();
+  const emp = emps.find(e => e.name === name);
+  return emp ? emp.color : '#60a5fa';
+}
+
+// ── STORAGE ──
+function saveRecord(rec) {
+  // 로컬에도 저장
+  const all = getRecords();
+  all.push(rec);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  // Google Sheets에도 전송
+  fetch(SHEET_URL, {
+    method: 'POST',
+    body: JSON.stringify(rec)
+  }).catch(() => {}); // 실패해도 앱은 계속 동작
+}
+
+function getRecords() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+}
+
+function getTodayRecords(emp) {
+  const today = new Date().toLocaleDateString('ko-KR');
+  return getRecords().filter(r => r.employee === emp && r.date === today);
+}
+
+// Google Sheets에서 전체 기록 불러오기 (관리자용)
+async function fetchSheetRecords() {
+  try {
+    const res = await fetch(SHEET_URL);
+    const json = await res.json();
+    const rows = json.data || [];
+    if (rows.length < 2) return [];
+    return rows.slice(1).map(r => ({
+      date: r[0], time: r[1], employee: r[2],
+      type: r[3] === '체크인' ? 'in' : 'out',
+      address: r[4], lat: parseFloat(r[5]), lng: parseFloat(r[6]),
+      accuracy: r[7], note: r[8], timestamp: r[9]
+    }));
+  } catch { return []; }
+}
+
+// ── LOGIN ──
+document.getElementById('login-role').addEventListener('change', function() {
+  const isAdmin = this.value === 'admin';
+  document.getElementById('admin-pw-wrap').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('employee-select-wrap').style.display = isAdmin ? 'none' : 'block';
+});
+
+// 페이지 로드 시 직원 목록 채우기
+populateLoginSelect();
+
+function doLogin() {
+  const role = document.getElementById('login-role').value;
+  if (role === 'admin') {
+    if (document.getElementById('admin-pw').value !== ADMIN_PASSWORD) {
+      showToast('❌ 비밀번호가 틀렸습니다');
+      return;
+    }
+    currentRole = 'admin';
+    showAdmin();
+  } else {
+    currentUser = document.getElementById('login-emp').value;
+    currentRole = 'employee';
+    showEmployee();
+  }
+}
+
+function doLogout() {
+  currentUser = null; currentRole = null; isCheckedIn = false;
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('employee-screen').style.display = 'none';
+  document.getElementById('admin-screen').style.display = 'none';
+  document.getElementById('admin-pw').value = '';
+  if (map) { map.remove(); map = null; }
+}
+
+// ── EMPLOYEE SCREEN ──
+function showEmployee() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('employee-screen').style.display = 'flex';
+  document.getElementById('emp-name-display').textContent = currentUser;
+  updateDateDisplay();
+  checkInStatus();
+  renderEmpRecords();
+}
+
+function updateDateDisplay() {
+  const now = new Date();
+  document.getElementById('emp-date-display').textContent =
+    now.toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
+  document.getElementById('admin-date').textContent =
+    now.toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' });
+}
+
+function checkInStatus() {
+  const recs = getTodayRecords(currentUser);
+  if (!recs.length) { setStatusOut(); return; }
+  const last = recs[recs.length - 1];
+  if (last.type === 'in') setStatusIn(last);
+  else setStatusOut();
+}
+
+function setStatusIn(rec) {
+  isCheckedIn = true;
+  const dot = document.getElementById('status-dot');
+  dot.classList.add('active');
+  document.getElementById('status-text').textContent = '외근 중';
+  document.getElementById('status-time').textContent = rec.time;
+  const btn = document.getElementById('checkin-btn');
+  btn.textContent = '📍 외근 종료 (체크아웃)';
+  btn.className = 'checkin-btn out';
+}
+
+function setStatusOut() {
+  isCheckedIn = false;
+  document.getElementById('status-dot').classList.remove('active');
+  document.getElementById('status-text').textContent = '외근 대기';
+  document.getElementById('status-time').textContent = '';
+  const btn = document.getElementById('checkin-btn');
+  btn.textContent = '📍 외근 시작 (체크인)';
+  btn.className = 'checkin-btn in';
+}
+
+function doCheckin() {
+  const loading = document.getElementById('gps-loading');
+  const btn = document.getElementById('checkin-btn');
+  btn.disabled = true;
+  loading.style.display = 'flex';
+
+  if (!navigator.geolocation) {
+    showToast('❌ 이 기기에서 GPS를 지원하지 않습니다');
+    btn.disabled = false; loading.style.display = 'none';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const accuracy = Math.round(pos.coords.accuracy);
+      const type = isCheckedIn ? 'out' : 'in';
+      const note = document.getElementById('note-input').value.trim();
+      const now = new Date();
+
+      // Reverse geocode (무료 Nominatim)
+      let addr = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ko`);
+        const data = await res.json();
+        if (data.display_name) {
+          const parts = data.display_name.split(',');
+          addr = parts.slice(0, 3).join(', ').trim();
+        }
+      } catch {}
+
+      const rec = {
+        id: Date.now(),
+        employee: currentUser,
+        type,
+        lat, lng, accuracy,
+        address: addr,
+        note,
+        time: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit', second:'2-digit' }),
+        date: now.toLocaleDateString('ko-KR'),
+        timestamp: now.toISOString()
+      };
+
+      saveRecord(rec);
+      document.getElementById('note-input').value = '';
+
+      if (type === 'in') { setStatusIn(rec); showToast('✅ 체크인 완료'); }
+      else { setStatusOut(); showToast('✅ 체크아웃 완료'); }
+
+      loading.style.display = 'none';
+      btn.disabled = false;
+      renderEmpRecords();
+    },
+    err => {
+      loading.style.display = 'none';
+      btn.disabled = false;
+      showToast('❌ GPS 오류: 위치 권한을 허용해주세요');
+    },
+    { enableHighAccuracy: true, timeout: 15000 }
+  );
+}
+
+function renderEmpRecords() {
+  const recs = getTodayRecords(currentUser).reverse();
+  const el = document.getElementById('emp-records');
+  if (!recs.length) { el.innerHTML = '<div class="empty-state">오늘 기록이 없습니다</div>'; return; }
+  el.innerHTML = recs.map(r => `
+    <div class="record-item">
+      <div class="record-type ${r.type}">${r.type === 'in' ? 'IN' : 'OUT'}</div>
+      <div class="record-body">
+        <div class="record-time">${r.time} <span style="font-size:11px;color:var(--muted)">±${r.accuracy}m</span></div>
+        <div class="record-addr">${r.address}</div>
+        ${r.note ? `<div class="record-note">💬 ${r.note}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── ADMIN SCREEN ──
+let sheetRecords = [];
+
+function showAdmin() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('admin-screen').style.display = 'flex';
+  updateDateDisplay();
+  refreshAdminFilters();
+  showToast('⏳ 기록 불러오는 중...');
+  fetchSheetRecords().then(records => {
+    sheetRecords = records;
+    setTimeout(initMap, 100);
+    renderAdminList();
+    renderStats();
+    showToast('✅ 기록 불러오기 완료');
+  });
+}
+
+function switchTab(tab) {
+  ['map','list','stats','members'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['map','list','stats','members'][i] === tab);
+  });
+  if (tab === 'map' && !map) setTimeout(initMap, 100);
+  if (tab === 'map' && map) { map.invalidateSize(); updateMapMarkers(); }
+  if (tab === 'list') renderAdminList();
+  if (tab === 'stats') renderStats();
+  if (tab === 'members') renderMembers();
+}
+
+function reloadSheetData(callback) {
+  showToast('⏳ 새로고침 중...');
+  fetchSheetRecords().then(records => {
+    sheetRecords = records;
+    showToast('✅ 완료');
+    if (callback) callback();
+  });
+}
+
+function initMap() {
+  if (map) return;
+  map = L.map('map', { zoomControl: true }).setView([37.5665, 126.9780], 12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO',
+    maxZoom: 19
+  }).addTo(map);
+  updateMapMarkers();
+}
+
+function updateMapMarkers() {
+  if (!map) return;
+  mapMarkers.forEach(m => m.remove());
+  mapMarkers = [];
+  const records = getFilteredRecords(currentFilter);
+  if (!records.length) return;
+
+  const bounds = [];
+  records.forEach(r => {
+    const color = r.type === 'in' ? '#4ade80' : '#f43f5e';
+    const empColor = getEmpColor(r.employee);
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:32px;height:32px;border-radius:50% 50% 50% 0;
+        background:${color};border:3px solid ${empColor};
+        transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,.4);
+        display:flex;align-items:center;justify-content:center;
+      "><div style="transform:rotate(45deg);font-size:12px">${r.type==='in'?'▲':'▼'}</div></div>`,
+      iconSize: [32,32],
+      iconAnchor: [16,32]
+    });
+    const marker = L.marker([r.lat, r.lng], { icon })
+      .addTo(map)
+      .bindPopup(`
+        <div style="font-family:'Noto Sans KR',sans-serif;min-width:180px">
+          <strong style="color:${empColor}">${r.employee}</strong>
+          <span style="margin-left:8px;font-size:11px;background:${color}22;color:${color};padding:2px 6px;border-radius:4px">${r.type==='in'?'체크인':'체크아웃'}</span>
+          <div style="margin-top:6px;font-size:13px;color:#666">${r.time} · ${r.date}</div>
+          <div style="margin-top:4px;font-size:12px">${r.address}</div>
+          ${r.note ? `<div style="margin-top:4px;font-size:12px;color:#60a5fa">💬 ${r.note}</div>` : ''}
+          <div style="margin-top:4px;font-size:11px;color:#999">GPS 정확도: ±${r.accuracy}m</div>
+        </div>
+      `);
+    mapMarkers.push(marker);
+    bounds.push([r.lat, r.lng]);
+  });
+
+  if (bounds.length) map.fitBounds(bounds, { padding: [40,40] });
+}
+
+function getFilteredRecords(emp) {
+  const all = sheetRecords.length ? sheetRecords : getRecords();
+  if (emp === 'ALL') return all;
+  return all.filter(r => r.employee === emp);
+}
+
+function filterAdmin(el) {
+  document.querySelectorAll('#tab-map .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  currentFilter = el.dataset.emp;
+  updateMapMarkers();
+}
+
+function filterList(el) {
+  document.querySelectorAll('#tab-list .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  listFilter = el.dataset.emp;
+  renderAdminList();
+}
+
+function renderAdminList() {
+  const recs = getFilteredRecords(listFilter).reverse();
+  const el = document.getElementById('admin-records-list');
+  if (!recs.length) { el.innerHTML = '<div class="empty-state">기록이 없습니다</div>'; return; }
+  el.innerHTML = recs.map(r => {
+    const empColor = getEmpColor(r.employee);
+    const typeColor = r.type === 'in' ? '#4ade80' : '#f43f5e';
+    return `
+      <div class="admin-record-item">
+        <div class="emp-badge" style="color:${empColor};background:${empColor}22">${r.employee}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:13px;font-weight:700;font-family:'DM Mono',monospace">${r.time}</span>
+            <span style="font-size:10px;background:${typeColor}22;color:${typeColor};padding:2px 6px;border-radius:4px;font-weight:700">${r.type==='in'?'IN':'OUT'}</span>
+            <span style="font-size:11px;color:var(--muted)">${r.date}</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted)">${r.address}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">정확도 ±${r.accuracy}m</div>
+          ${r.note ? `<div style="font-size:12px;color:var(--accent3);margin-top:4px">💬 ${r.note}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderStats() {
+  const all = sheetRecords.length ? sheetRecords : getRecords();
+  const emps = getEmployees();
+  const today = new Date().toLocaleDateString('ko-KR');
+
+  const todayAll = all.filter(r => r.date === today);
+  const row = document.getElementById('stats-row');
+  row.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-val">${todayAll.length}</div>
+      <div class="stat-lbl">오늘 전체 기록</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${todayAll.filter(r=>r.type==='in').length}</div>
+      <div class="stat-lbl">체크인</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${all.length}</div>
+      <div class="stat-lbl">전체 누적</div>
+    </div>
+  `;
+
+  const detail = document.getElementById('stats-detail');
+  detail.innerHTML = emps.map(emp => {
+    const empColor = emp.color;
+    const todayRecs = all.filter(r => r.employee === emp.name && r.date === today);
+    const totalRecs = all.filter(r => r.employee === emp.name);
+    const lastRec = totalRecs[totalRecs.length - 1];
+    const lastStatus = lastRec ? (lastRec.type === 'in' ? '외근 중' : '대기') : '기록 없음';
+    const statusColor = lastRec?.type === 'in' ? '#4ade80' : '#6b6b80';
+    return `
+      <div class="admin-record-item">
+        <div class="emp-badge" style="color:${empColor};background:${empColor}22">${emp.name}${emp.isTest ? ' 🧪' : ''}</div>
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:600">${emp.name}</span>
+            <span style="font-size:12px;color:${statusColor};font-weight:600">${lastStatus}</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">
+            오늘 ${todayRecs.length}회 &nbsp;·&nbsp; 누적 ${totalRecs.length}회
+          </div>
+          ${lastRec ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">마지막: ${lastRec.date} ${lastRec.time}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── MEMBERS MANAGEMENT ──
+function renderMembers() {
+  const emps = getEmployees();
+  const el = document.getElementById('members-list');
+  if (!emps.length) { el.innerHTML = '<div class="empty-state">직원이 없습니다</div>'; return; }
+
+  const regular = emps.filter(e => !e.isTest);
+  const test = emps.filter(e => e.isTest);
+
+  const renderGroup = (list, label) => {
+    if (!list.length) return '';
+    return `
+      <div class="section-title" style="margin-bottom:10px">${label}</div>
+      ${list.map(emp => `
+        <div class="admin-record-item" style="align-items:center">
+          <div style="width:14px;height:14px;border-radius:50%;background:${emp.color};flex-shrink:0"></div>
+          <div style="flex:1">
+            <input type="text" value="${emp.name}" 
+              onchange="renameEmployee(${emp.id}, this.value)"
+              style="background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:15px;font-weight:600;font-family:'Noto Sans KR',sans-serif;outline:none;width:100%;padding:2px 0">
+          </div>
+          <input type="color" value="${emp.color}" 
+            onchange="recolorEmployee(${emp.id}, this.value)"
+            style="width:32px;height:32px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);cursor:pointer;padding:2px;flex-shrink:0">
+          <button onclick="deleteEmployee(${emp.id})" 
+            style="background:transparent;border:none;color:var(--accent2);font-size:18px;cursor:pointer;flex-shrink:0;padding:0 4px">✕</button>
+        </div>
+      `).join('')}
+    `;
+  };
+
+  el.innerHTML = `
+    <div style="padding:16px 20px">
+      ${renderGroup(regular, 'STAFF')}
+      ${test.length ? renderGroup(test, 'TEST') : ''}
+    </div>
+  `;
+}
+
+function renameEmployee(id, newName) {
+  if (!newName.trim()) { showToast('❌ 이름을 입력해주세요'); return; }
+  const emps = getEmployees();
+  const emp = emps.find(e => e.id === id);
+  if (!emp) return;
+  const oldName = emp.name;
+  emp.name = newName.trim();
+  saveEmployees(emps);
+  // 기존 기록도 이름 업데이트
+  const records = getRecords();
+  records.forEach(r => { if (r.employee === oldName) r.employee = newName.trim(); });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  showToast('✅ 이름이 변경되었습니다');
+  refreshAdminFilters();
+}
+
+function recolorEmployee(id, color) {
+  const emps = getEmployees();
+  const emp = emps.find(e => e.id === id);
+  if (!emp) return;
+  emp.color = color;
+  saveEmployees(emps);
+  showToast('✅ 색상이 변경되었습니다');
+}
+
+function deleteEmployee(id) {
+  const emps = getEmployees();
+  const emp = emps.find(e => e.id === id);
+  if (!emp) return;
+  if (!confirm(`'${emp.name}' 직원을 삭제할까요?\n(기록은 유지됩니다)`)) return;
+  saveEmployees(emps.filter(e => e.id !== id));
+  renderMembers();
+  refreshAdminFilters();
+  showToast('🗑 직원이 삭제되었습니다');
+}
+
+function addEmployee() {
+  const nameInput = document.getElementById('new-emp-name');
+  const colorInput = document.getElementById('new-emp-color');
+  const isTest = document.getElementById('new-emp-test').checked;
+  const name = nameInput.value.trim();
+  if (!name) { showToast('❌ 이름을 입력해주세요'); return; }
+  const emps = getEmployees();
+  if (emps.find(e => e.name === name)) { showToast('❌ 이미 존재하는 이름입니다'); return; }
+  const newId = Math.max(...emps.map(e => e.id), 0) + 1;
+  emps.push({ id: newId, name, color: colorInput.value, isTest });
+  saveEmployees(emps);
+  nameInput.value = '';
+  colorInput.value = '#60a5fa';
+  document.getElementById('new-emp-test').checked = false;
+  renderMembers();
+  refreshAdminFilters();
+  showToast(`✅ '${name}' 추가 완료`);
+}
+
+function refreshAdminFilters() {
+  const emps = getEmployees();
+  // 지도 필터
+  const mapFilter = document.getElementById('tab-map').querySelector('.filter-row') || document.querySelector('#tab-map .filter-row');
+  const listFilterEl = document.querySelector('#tab-list .filter-row');
+  const filterHtml = (prefix) => `
+    <button class="filter-chip active" data-emp="ALL" onclick="${prefix}(this)">전체</button>
+    ${emps.map(e => `<button class="filter-chip" data-emp="${e.name}" onclick="${prefix}(this)">${e.name}${e.isTest?' 🧪':''}</button>`).join('')}
+  `;
+  document.getElementById('admin-filter-row').innerHTML = filterHtml('filterAdmin');
+  if (listFilterEl) listFilterEl.innerHTML = filterHtml('filterList');
+  // 로그인 select도 갱신
+  populateLoginSelect();
+}
+
+function populateLoginSelect() {
+  const emps = getEmployees();
+  const sel = document.getElementById('login-emp');
+  const regular = emps.filter(e => !e.isTest);
+  const test = emps.filter(e => e.isTest);
+  sel.innerHTML = '';
+  if (regular.length) {
+    const g = document.createElement('optgroup');
+    g.label = '직원';
+    regular.forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.name; o.textContent = e.name;
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  }
+  if (test.length) {
+    const g = document.createElement('optgroup');
+    g.label = '테스트';
+    test.forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.name; o.textContent = e.name + ' 🧪';
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  }
+}
+
+// ── UTILS ──
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
